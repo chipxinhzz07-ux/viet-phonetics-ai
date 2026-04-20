@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VietPhonetics AI - Sinh Viên Đại Nam</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background: #0f172a; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .ipa-btn { transition: all 0.1s; }
+        .ipa-btn:active { transform: scale(0.9); background: #22d3ee; color: #000; }
+        /* Hiệu ứng gõ chữ cho mượt */
+        textarea { caret-color: #22d3ee; }
+    </style>
+</head>
+<body class="text-slate-200 min-h-screen pb-64">
+
+    <div class="max-w-4xl mx-auto p-4 md:p-8">
+        <header class="text-center mb-10">
+            <h1 class="text-3xl md:text-5xl font-black tracking-tighter bg-gradient-to-r from-cyan-400 to-fuchsia-500 bg-clip-text text-transparent italic">
+                VIET-PHONETICS AI
+            </h1>
+            <p class="text-slate-400 mt-2 text-sm uppercase tracking-widest">Hệ thống luyện tập Ngữ âm học chuyên sâu</p>
+        </header>
+
+        <div class="flex flex-wrap justify-center gap-3 mb-8">
+            <button onclick="getTask('Dễ')" class="px-5 py-2 bg-slate-800 hover:bg-cyan-900 rounded-full border border-cyan-500/30 text-sm font-bold transition">Cấp độ Dễ</button>
+            <button onclick="getTask('Trung bình')" class="px-5 py-2 bg-slate-800 hover:bg-purple-900 rounded-full border border-purple-500/30 text-sm font-bold transition">Trung bình</button>
+            <button onclick="getTask('Khó')" class="px-5 py-2 bg-slate-800 hover:bg-red-900 rounded-full border border-red-500/30 text-sm font-bold transition">Nâng cao</button>
+        </div>
+
+        <div class="grid gap-6">
+            <div class="glass p-6 rounded-3xl shadow-xl">
+                <h2 class="text-xs font-bold text-cyan-400 uppercase mb-3 tracking-widest flex items-center">
+                    <span class="w-2 h-2 bg-cyan-400 rounded-full mr-2"></span> Đề bài từ AI
+                </h2>
+                <p id="task-content" class="text-xl md:text-2xl font-serif italic text-white leading-relaxed">
+                    Chọn một cấp độ phía trên để bắt đầu luyện tập...
+                </p>
+            </div>
+
+            <div class="glass p-6 rounded-3xl shadow-xl">
+                <h2 class="text-xs font-bold text-fuchsia-400 uppercase mb-3 tracking-widest flex items-center">
+                    <span class="w-2 h-2 bg-fuchsia-400 rounded-full mr-2"></span> Bài làm của bạn (IPA)
+                </h2>
+                <textarea id="user-input" 
+                    class="w-full bg-transparent text-xl font-mono text-cyan-300 outline-none h-28 resize-none placeholder:text-slate-600" 
+                    placeholder="Sử dụng bàn phím ảo bên dưới để nhập ký hiệu..."></textarea>
+                
+                <button id="btn-check" onclick="checkTask()" 
+                    class="w-full mt-4 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-black rounded-2xl hover:brightness-110 transition shadow-lg shadow-cyan-500/20 uppercase tracking-wider">
+                    Kiểm tra kết quả
+                </button>
+            </div>
+
+            <div id="feedback-box" class="hidden glass p-6 rounded-3xl border-l-4 border-green-500 animate-in fade-in duration-500">
+                <h2 class="text-xs font-bold text-green-400 uppercase mb-2">Nhận xét từ AI Tutor</h2>
+                <p id="feedback-text" class="text-slate-300 italic leading-relaxed"></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="fixed bottom-0 left-0 w-full bg-slate-900/95 border-t border-white/10 p-4 shadow-2xl backdrop-blur-md">
+        <div class="max-w-4xl mx-auto">
+            <div class="flex flex-wrap gap-1.5 justify-center" id="keyboard">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        const IPA_LIST = [
+            'i', 'e', 'ɛ', 'u', 'o', 'ɔ', 'ɯ', 'ɤ', 'a', 'ă', 'â', 'i̯e', 'ɯ̯ɤ', 'u̯o', 
+            'p', 'b', 'm', 'f', 'v', 't', 'd', 'n', 's', 'z', 'l', 'ʈ', 'ʂ', 'ʐ', 'c', 'ɲ', 'k', 'ŋ', 'χ', 'ɣ', 'h',
+            '33', '21', '35', '312', '45', '21.'
+        ];
+        
+        let currentAnswer = "";
+        const inputArea = document.getElementById('user-input');
+
+        // Tạo bàn phím ảo
+        const kb = document.getElementById('keyboard');
+        IPA_LIST.forEach(char => {
+            const btn = document.createElement('button');
+            btn.className = "ipa-btn min-w-[40px] h-11 px-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-mono text-lg border border-white/5 shadow-sm";
+            btn.innerText = char;
+            btn.onclick = () => insertChar(char);
+            kb.appendChild(btn);
+        });
+
+        function insertChar(char) {
+            const start = inputArea.selectionStart;
+            const end = inputArea.selectionEnd;
+            inputArea.value = inputArea.value.substring(0, start) + char + inputArea.value.substring(end);
+            inputArea.focus();
+            inputArea.setSelectionRange(start + char.length, start + char.length);
+        }
+
+        async function getTask(level) {
+            const contentDisplay = document.getElementById('task-content');
+            contentDisplay.innerHTML = `<span class="animate-pulse text-cyan-400 text-lg italic">AI đang soạn đề bài...</span>`;
+            
+            try {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ level })
+                });
+                const data = await res.json();
+                contentDisplay.innerText = data.content;
+                currentAnswer = data.answer;
+                inputArea.value = "";
+                document.getElementById('feedback-box').classList.add('hidden');
+            } catch (e) {
+                contentDisplay.innerText = "Lỗi kết nối. Vui lòng thử lại!";
+            }
+        }
+
+        async function checkTask() {
+            const feedbackBox = document.getElementById('feedback-box');
+            const feedbackText = document.getElementById('feedback-text');
+            const btn = document.getElementById('btn-check');
+
+            if (!inputArea.value) return alert("Vui lòng nhập phiên âm trước!");
+
+            feedbackBox.classList.remove('hidden');
+            feedbackText.innerHTML = `<span class="animate-pulse">Đang chấm bài...</span>`;
+            btn.disabled = true;
+            btn.innerText = "ĐANG CHẤM...";
+
+            try {
+                const res = await fetch('/api/check', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ 
+                        user_input: inputArea.value, 
+                        answer: currentAnswer 
+                    })
+                });
+                const data = await res.json();
+                feedbackText.innerText = data.feedback;
+            } catch (e) {
+                feedbackText.innerText = "Lỗi khi chấm bài. Thử lại sau!";
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "KIỂM TRA KẾT QUẢ";
+            }
+        }
+    </script>
+</body>
+</html>
